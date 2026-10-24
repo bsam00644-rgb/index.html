@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PES 2014 PSP Extract Appearance Beta</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- SheetJS for Excel Exports -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col p-4 md:p-6">
+
+  <!-- Header Section -->
+  <header class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-700 pb-4">
+    <div>
+      <h1 class="text-2xl md:text-3xl font-bold text-emerald-400 flex items-center gap-2">
+        <i class="fa-solid fa-gamepad"></i> PES 2014 PSP Extract Appearance Beta
+      </h1>
+      <p class="text-xs md:text-sm text-slate-400 mt-1">
+        Sequential workflow from data.bin conversion to final appearance calculations.
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      <button id="exportCsvBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-2 shadow">
+        <i class="fa-solid fa-file-csv text-emerald-400"></i> Export CSV
+      </button>
+      <button id="exportXlsxBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-2 shadow">
+        <i class="fa-solid fa-file-excel"></i> Export Excel (.xlsx)
+      </button>
+    </div>
+  </header>
+
+  <!-- Sequential Step Panels (Step 1 to Step 4) -->
+  <section class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    
+    <!-- Step 1: data.bin Conversion -->
+    <div class="bg-slate-800/90 border border-slate-700 rounded-xl p-3.5 flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-1"></i> Step 1: data.bin Slice
+          </h2>
+        </div>
+        <p class="text-[11px] text-slate-400 mb-2">
+          Drop <code class="text-cyan-300 font-mono">data.bin</code> to slice hex <code class="text-amber-300 font-mono">0x9364-0x9AE03</code> and add 48-byte null header.
+        </p>
+      </div>
+      <div>
+        <div id="dataBinDropZone" class="border-2 border-dashed border-cyan-500/40 hover:border-cyan-400 bg-slate-900/50 hover:bg-slate-900/80 transition rounded-lg p-2 text-center cursor-pointer mb-2">
+          <input type="file" id="dataBinFileInput" class="hidden" accept="*">
+          <span class="text-[11px] font-medium text-slate-300"><i class="fa-solid fa-scissors text-cyan-400 mr-1"></i> Drop data.bin here</span>
+        </div>
+        <button id="download5100Btn" class="hidden w-full bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-semibold py-1 rounded transition">
+          <i class="fa-solid fa-download mr-1"></i> Save 51_00 File
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 2: Load 51_00 / BIN Database -->
+    <div class="bg-slate-800/90 border border-slate-700 rounded-xl p-3.5 flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-2"></i> Step 2: Load 51_00
+          </h2>
+        </div>
+        <p class="text-[11px] text-slate-400 mb-2">
+          Drop your converted <code class="text-emerald-300 font-mono">51_00</code> or database file to parse player rows.
+        </p>
+      </div>
+      <div id="dropZone" class="border-2 border-dashed border-emerald-500/40 hover:border-emerald-400 bg-slate-900/50 hover:bg-slate-900/80 transition rounded-lg p-3 text-center cursor-pointer">
+        <input type="file" id="fileInput" class="hidden" accept=".bin,.00,.bin_000,*">
+        <span class="text-[11px] font-medium text-slate-300"><i class="fa-solid fa-cloud-arrow-up text-emerald-400 mr-1"></i> Drop 51_00 File</span>
+      </div>
+    </div>
+
+    <!-- Step 3: EBOOT Scanner -->
+    <div class="bg-slate-800/90 border border-slate-700 rounded-xl p-3.5 flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-3"></i> Step 3: EBOOT Scan
+          </h2>
+        </div>
+        <p class="text-[11px] text-slate-400 mb-2">
+          Drop <code class="text-amber-300 font-mono">EBOOT.OLD</code> to read face/hair start offsets automatically.
+        </p>
+      </div>
+      <div id="ebootDropZone" class="border-2 border-dashed border-amber-500/40 hover:border-amber-400 bg-slate-900/50 hover:bg-slate-900/80 transition rounded-lg p-3 text-center cursor-pointer">
+        <input type="file" id="ebootFileInput" class="hidden" accept="*">
+        <span class="text-[11px] font-medium text-slate-300"><i class="fa-solid fa-microchip text-amber-400 mr-1"></i> Drop EBOOT File</span>
+      </div>
+    </div>
+
+    <!-- Step 4: Calculate & Sort Panel -->
+    <div class="bg-slate-800/90 border border-slate-700 rounded-xl p-3.5 flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-4"></i> Step 4: Offsets &amp; Sort
+          </h2>
+        </div>
+        <div class="grid grid-cols-2 gap-1.5 text-[10px] font-mono mb-2">
+          <div>
+            <label class="text-slate-400 block">Start Face</label>
+            <input type="number" id="startFaceInput" value="1565" class="w-full bg-slate-900 border border-slate-700 text-emerald-400 font-bold px-1.5 py-0.5 rounded text-xs">
+          </div>
+          <div>
+            <label class="text-slate-400 block">Start Hair</label>
+            <input type="number" id="startHairInput" value="10833" class="w-full bg-slate-900 border border-slate-700 text-emerald-400 font-bold px-1.5 py-0.5 rounded text-xs">
+          </div>
+        </div>
+      </div>
+      <button id="sortBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold py-1 rounded transition flex items-center justify-center gap-1 shadow">
+        <i class="fa-solid fa-arrow-down-short-wide"></i> Sort Preset &amp; Hair
+      </button>
+    </div>
+
+  </section>
+
+  <!-- Toolbar & Search -->
+  <section class="mb-3 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-800/80 p-2.5 rounded-lg border border-slate-700">
+    <div class="relative w-full sm:w-72">
+      <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+      <input type="text" id="searchInput" placeholder="Search player name or ID..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+    </div>
+
+    <div class="flex items-center gap-4 text-xs text-slate-300 w-full sm:w-auto justify-between sm:justify-end">
+      <div>Loaded Players: <span id="playerCount" class="font-bold text-emerald-400">0</span></div>
+      <button id="addRowBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded text-xs font-semibold transition flex items-center gap-1">
+        <i class="fa-solid fa-plus"></i> Add Player
+      </button>
+    </div>
+  </section>
+
+  <!-- Spreadsheet Table Container -->
+  <main class="flex-1 bg-slate-800/90 rounded-xl border border-slate-700 overflow-hidden flex flex-col shadow-xl">
+    <div class="overflow-x-auto overflow-y-auto max-h-[50vh] custom-scrollbar flex-1">
+      <table class="w-full text-left border-collapse min-w-[1050px]" id="dataTable">
+        <thead class="bg-slate-900/90 text-slate-300 uppercase text-xs sticky top-0 border-b border-slate-700 z-10">
+          <tr>
+            <th class="p-2.5 w-14 text-center border-r border-slate-700/50">ID</th>
+            <th class="p-2.5 border-r border-slate-700/50">PLAYER NAME</th>
+            <th class="p-2.5 w-24 border-r border-slate-700/50 text-center">CALLNAME</th>
+            <th class="p-2.5 w-24 border-r border-slate-700/50 text-center">FACE</th>
+            <th class="p-2.5 w-20 border-r border-slate-700/50 text-center">FACE ID</th>
+            <th class="p-2.5 w-28 border-r border-slate-700/50 text-center bg-emerald-950/40 text-emerald-300">CALC FACE</th>
+            <th class="p-2.5 w-24 border-r border-slate-700/50 text-center">SKIN COLOUR</th>
+            <th class="p-2.5 w-20 border-r border-slate-700/50 text-center">HAIR ID</th>
+            <th class="p-2.5 w-32 text-center border-r border-slate-700/50">SPECIAL HAIR 2</th>
+            <th class="p-2.5 w-28 border-r border-slate-700/50 text-center bg-indigo-950/40 text-indigo-300">CALC HAIR</th>
+            <th class="p-2.5 w-14 text-center">ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody" class="divide-y divide-slate-700/60 text-xs font-mono">
+          <!-- Rows rendered dynamically -->
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- JavaScript Toolkit Logic -->
+  <script>
+    let playersData = [
+      [1, "A. Schlager", 0, "Build", 334, 2, 1311, "NO"],
+      [2, "Dragović", 0, "Build", 157, 1, 1049, "YES"],
+      [3, "Josh Ruffels", 0, "Build", 134, 1, 1031, "NO"],
+      [4, "S. Lainer", 0, "Preset", 1720, 1, 117, "NO"],
+      [5, "H. Matriciani", 0, "Build", 134, 1, 1092, "NO"],
+      [6, "Luka Ilic", 0, "Build", 134, 1, 1050, "NO"],
+      [7, "A. Tamèze", 0, "Build", 1083, 6, 985, "NO"],
+      [8, "Dejan Ljubičić", 0, "Build", 334, 2, 1050, "NO"],
+      [9, "Arnautović", 0, "Preset", 1087, 1, 1852, "YES"],
+      [10, "Junuzović", 0, "Build", 134, 1, 1697, "YES"],
+      [11, "G. Lapadula", 0, "Preset", 154, 2, 1453, "NO"],
+      [12, "Sven Ulreich", 0, "Preset", 1183, 1, 2271, "NO"],
+      [13, "L. Grill", 0, "Build", 134, 1, 1052, "NO"],
+      [14, "Justin Che", 0, "Build", 1336, 3, 1319, "NO"],
+      [15, "V. Lazaro", 0, "Build", 1336, 3, 1274, "NO"],
+      [16, "N. Atkinson", 0, "Build", 134, 1, 1052, "NO"],
+      [17, "J. Nilsson", 0, "Build", 134, 1, 1105, "NO"],
+      [18, "Baumgartlinger", 0, "Build", 134, 1, 517, "YES"],
+      [19, "Louis Schaub", 0, "Build", 134, 1, 91, "NO"],
+      [20, "M. De Roon", 0, "Build", 134, 1, 1414, "YES"],
+      [21, "Rhys Williams", 0, "Build", 1336, 3, 1059, "NO"],
+      [22, "Andriy Lunin", 0, "Preset", 326, 1, 1045, "NO"],
+      [23, "L. Kalinic", 0, "Build", 334, 2, 869, "YES"]
+    ];
+
+    let generated5100Buffer = null;
+
+    const LOCATION_MAP = {
+      0: "0_SOUND",
+      1: "0_TEXT",
+      2: "X_SOUND",
+      3: "X_TEXT",
+      4: "OVER"
+    };
+
+    function zeroFillRightShift(val, n) {
+      return (val >>> 0) >> n;
+    }
+
+    function getValue(data, offset, shift, mask) {
+      const i = offset + 48;
+      if (i >= data.length || (i - 1) < 0) return 0;
+      let j = (data[i] << 8) | data[i - 1];
+      j = zeroFillRightShift(j, shift);
+      return j & mask;
+    }
+
+    // Step 1: Slice data.bin & prepend 48 null bytes
+    function extract5100FromDataBin(buffer) {
+      const srcBytes = new Uint8Array(buffer);
+      const startOffset = 0x9364;
+      const sliceLength = 0x91AA0;
+
+      if (srcBytes.length < startOffset + sliceLength) {
+        alert(`data.bin file is too small! Expected at least ${startOffset + sliceLength} bytes.`);
+        return;
+      }
+
+      const targetBuffer = new Uint8Array(48 + sliceLength);
+      targetBuffer.fill(0, 0, 48);
+      targetBuffer.set(srcBytes.subarray(startOffset, startOffset + sliceLength), 48);
+
+      generated5100Buffer = targetBuffer;
+      document.getElementById("download5100Btn").classList.remove("hidden");
+      parsePESBinaryFile(targetBuffer.buffer);
+    }
+
+    // Step 2: Parse 51_00 Database File
+    function parsePESBinaryFile(buffer) {
+      const data = new Uint8Array(buffer);
+      const recordSize = 124;
+      const totalPlayers = Math.floor(data.length / recordSize);
+
+      if (totalPlayers < 1) {
+        alert("File size is too small or invalid.");
+        return;
+      }
+
+      const parsedPlayers = [];
+      const decoder = new TextDecoder("utf-16le");
+
+      for (let i = 1; i < totalPlayers; i++) {
+        const offset = i * recordSize;
+        const playerBytes = data.subarray(offset, offset + recordSize);
+
+        let rawName = decoder.decode(playerBytes.subarray(0, 32));
+        let player_name = rawName.split('\0')[0] || "Unknown";
+
+        const FACE = getValue(playerBytes, 55, 0, 0x3) === 0 ? "Build" : "Preset";
+        const FACE_TYPE = getValue(playerBytes, 53, 4, 4095);
+        const SKIN = getValue(playerBytes, 68, 0, 0x7) + 1;
+        const HAIR = getValue(playerBytes, 45, 0, 4095);
+        const SPECIAL_HAIRSTYLES2 = getValue(playerBytes, 52, 6, 1) === 0 ? "NO" : "YES";
+        const CALLNAME_ID = getValue(playerBytes, 1, 0, 0xFFFF);
+
+        parsedPlayers.push([
+          i,
+          player_name,
+          CALLNAME_ID,
+          FACE,
+          FACE_TYPE,
+          SKIN,
+          HAIR,
+          SPECIAL_HAIRSTYLES2
+        ]);
+      }
+
+      playersData = parsedPlayers;
+      renderTable();
+    }
+
+    // Step 3: Scan EBOOT Offsets
+    function parseEbootFile(buffer) {
+      const view = new DataView(buffer);
+      const faceOffset = 0x2CC4A0;
+      const hairOffset = 0x2CC550;
+
+      if (view.byteLength < hairOffset + 4) {
+        alert("EBOOT file size is too small.");
+        return;
+      }
+
+      const faceDec = view.getUint16(faceOffset, true);
+      const hairDec = view.getUint16(hairOffset, true);
+
+      document.getElementById("startFaceInput").value = faceDec;
+      document.getElementById("startHairInput").value = hairDec;
+      renderTable();
+    }
+
+    // Step 4: Sorting
+    function sortPlayerData() {
+      playersData.sort((a, b) => {
+        const isPresetA = a[3] === 'Preset';
+        const isPresetB = b[3] === 'Preset';
+
+        if (isPresetA && isPresetB) return a[4] - b[4];
+        if (isPresetA && !isPresetB) return -1;
+        if (!isPresetA && isPresetB) return 1;
+
+        const isSpecialHairA = a[7] === 'YES';
+        const isSpecialHairB = b[7] === 'YES';
+
+        if (isSpecialHairA && isSpecialHairB) return a[6] - b[6];
+        if (isSpecialHairA && !isSpecialHairB) return -1;
+        if (!isSpecialHairA && isSpecialHairB) return 1;
+
+        return a[0] - b[0];
+      });
+
+      renderTable();
+    }
+
+    function renderTable() {
+      const tableBody = document.getElementById("tableBody");
+      const searchVal = document.getElementById("searchInput").value.toLowerCase();
+      
+      const startFaceDec = parseInt(document.getElementById("startFaceInput").value) || 0;
+      const startHairDec = parseInt(document.getElementById("startHairInput").value) || 0;
+
+      tableBody.innerHTML = "";
+
+      const filteredData = playersData.filter(row => {
+        return row[1].toString().toLowerCase().includes(searchVal) || row[0].toString().includes(searchVal);
+      });
+
+      document.getElementById("playerCount").innerText = playersData.length;
+
+      filteredData.forEach((row) => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-700/40 transition border-b border-slate-700/40";
+        
+        const isPreset = row[3] === 'Preset';
+        const calcFace = isPreset ? (startFaceDec + row[4]) : "-";
+        const calcHair = startHairDec + row[6];
+        const isSpecialHair2 = row[7] === 'YES';
+
+        tr.innerHTML = `
+          <td class="p-2 text-center text-slate-400 border-r border-slate-700/50">${row[0]}</td>
+          <td class="p-2 border-r border-slate-700/50 text-slate-100 font-sans font-medium" contenteditable="true" onblur="updateCell(${row[0] - 1}, 1, this.innerText)">${row[1]}</td>
+          <td class="p-2 text-center border-r border-slate-700/50 text-slate-300" contenteditable="true" onblur="updateCell(${row[0] - 1}, 2, this.innerText)">${row[2]}</td>
+          
+          <td class="p-2 text-center border-r border-slate-700/50">
+            <select onchange="updateCell(${row[0] - 1}, 3, this.value)" class="bg-slate-900 text-[11px] px-1.5 py-0.5 rounded border border-slate-700 focus:outline-none focus:border-emerald-400 ${isPreset ? 'text-amber-300 border-amber-500/40' : 'text-slate-300'}">
+              <option value="Build" ${row[3] === 'Build' ? 'selected' : ''}>Build</option>
+              <option value="Preset" ${row[3] === 'Preset' ? 'selected' : ''}>Preset</option>
+            </select>
+          </td>
+
+          <td class="p-2 text-center border-r border-slate-700/50 text-slate-200" contenteditable="true" onblur="updateCell(${row[0] - 1}, 4, this.innerText)">${row[4]}</td>
+          <td class="p-2 text-center border-r border-slate-700/50 font-bold bg-emerald-950/20 text-emerald-400">${calcFace}</td>
+
+          <td class="p-2 text-center border-r border-slate-700/50 text-slate-200" contenteditable="true" onblur="updateCell(${row[0] - 1}, 5, this.innerText)">${row[5]}</td>
+          <td class="p-2 text-center border-r border-slate-700/50 text-slate-200" contenteditable="true" onblur="updateCell(${row[0] - 1}, 6, this.innerText)">${row[6]}</td>
+          
+          <td class="p-2 text-center border-r border-slate-700/50">
+            <select onchange="updateCell(${row[0] - 1}, 7, this.value)" class="bg-slate-900 text-[11px] px-1.5 py-0.5 rounded border border-slate-700 focus:outline-none focus:border-emerald-400 ${isSpecialHair2 ? 'text-emerald-400 border-emerald-500/40' : 'text-red-400 border-red-500/40'}">
+              <option value="NO" ${row[7] === 'NO' ? 'selected' : ''}>NO</option>
+              <option value="YES" ${row[7] === 'YES' ? 'selected' : ''}>YES</option>
+            </select>
+          </td>
+
+          <td class="p-2 text-center border-r border-slate-700/50 font-bold bg-indigo-950/20 text-indigo-400">${calcHair}</td>
+
+          <td class="p-2 text-center">
+            <button onclick="deleteRow(${row[0] - 1})" class="text-slate-400 hover:text-red-400 transition">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </td>
+        `;
+        tableBody.appendChild(tr);
+      });
+    }
+
+    function updateCell(rowIndex, colIndex, value) {
+      if (colIndex === 2 || colIndex === 4 || colIndex === 5 || colIndex === 6) {
+        playersData[rowIndex][colIndex] = parseInt(value) || 0;
+      } else {
+        playersData[rowIndex][colIndex] = value.toString().trim();
+      }
+      renderTable();
+    }
+
+    function deleteRow(rowIndex) {
+      playersData.splice(rowIndex, 1);
+      playersData.forEach((row, i) => row[0] = i + 1);
+      renderTable();
+    }
+
+    function downloadExtracted5100() {
+      if (!generated5100Buffer) return;
+      const blob = new Blob([generated5100Buffer], { type: "application/octet-stream" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "51_00";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function exportCSV() {
+      const startFaceDec = parseInt(document.getElementById("startFaceInput").value) || 0;
+      const startHairDec = parseInt(document.getElementById("startHairInput").value) || 0;
+
+      let csvContent = "data:text/csv;charset=utf-8,ID,PLAYER NAME,CALLNAME_ID,FACE,FACE ID,CALC FACE FILE,SKIN COLOUR,HAIR ID,IS SPECIAL HAIRSTYLES 2,CALC HAIR FILE\n";
+      playersData.forEach(row => {
+        const isPreset = row[3] === 'Preset';
+        const calcFace = isPreset ? (startFaceDec + row[4]) : "-";
+        const calcHair = startHairDec + row[6];
+        const line = [row[0], row[1], row[2], row[3], row[4], calcFace, row[5], row[6], row[7], calcHair];
+        csvContent += line.join(",") + "\n";
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "pes2014_appearance_beta.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function exportExcel() {
+      const startFaceDec = parseInt(document.getElementById("startFaceInput").value) || 0;
+      const startHairDec = parseInt(document.getElementById("startHairInput").value) || 0;
+
+      const headers = [["ID", "PLAYER NAME", "CALLNAME_ID", "FACE", "FACE ID", "CALC FACE FILE", "SKIN COLOUR", "HAIR ID", "IS SPECIAL HAIRSTYLES 2", "CALC HAIR FILE"]];
+      const fullRows = playersData.map(row => {
+        const isPreset = row[3] === 'Preset';
+        const calcFace = isPreset ? (startFaceDec + row[4]) : "-";
+        const calcHair = startHairDec + row[6];
+        return [row[0], row[1], row[2], row[3], row[4], calcFace, row[5], row[6], row[7], calcHair];
+      });
+
+      const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...fullRows]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Player Appearance");
+      XLSX.writeFile(workbook, "pes2014_appearance_beta.xlsx");
+    }
+
+    document.getElementById("searchInput").addEventListener("input", renderTable);
+    document.getElementById("startFaceInput").addEventListener("input", renderTable);
+    document.getElementById("startHairInput").addEventListener("input", renderTable);
+    document.getElementById("exportCsvBtn").addEventListener("click", exportCSV);
+    document.getElementById("exportXlsxBtn").addEventListener("click", exportExcel);
+    document.getElementById("sortBtn").addEventListener("click", sortPlayerData);
+    document.getElementById("download5100Btn").addEventListener("click", downloadExtracted5100);
+
+    document.getElementById("addRowBtn").addEventListener("click", () => {
+      const newId = playersData.length + 1;
+      playersData.push([newId, "New Player", 0, "Build", 134, 1, 1000, "NO"]);
+      renderTable();
+    });
+
+    // Step 1 Handler
+    const dataBinDropZone = document.getElementById("dataBinDropZone");
+    const dataBinFileInput = document.getElementById("dataBinFileInput");
+    dataBinDropZone.addEventListener("click", () => dataBinFileInput.click());
+    dataBinFileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        const reader = new FileReader();
+        reader.onload = (evt) => extract5100FromDataBin(evt.target.result);
+        reader.readAsArrayBuffer(e.target.files[0]);
+      }
+    });
+
+    // Step 2 Handler
+    const dropZone = document.getElementById("dropZone");
+    const fileInput = document.getElementById("fileInput");
+    dropZone.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        const reader = new FileReader();
+        reader.onload = (evt) => parsePESBinaryFile(evt.target.result);
+        reader.readAsArrayBuffer(e.target.files[0]);
+      }
+    });
+
+    // Step 3 Handler
+    const ebootDropZone = document.getElementById("ebootDropZone");
+    const ebootFileInput = document.getElementById("ebootFileInput");
+    ebootDropZone.addEventListener("click", () => ebootFileInput.click());
+    ebootFileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        const reader = new FileReader();
+        reader.onload = (evt) => parseEbootFile(evt.target.result);
+        reader.readAsArrayBuffer(e.target.files[0]);
+      }
+    });
+
+    renderTable();
+  </script>
+</body>
+</html>
